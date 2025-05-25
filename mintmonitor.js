@@ -1,5 +1,6 @@
 (function(){
-  const volume = 0.3; // 🔊 Set your preferred volume here (0.0 to 1.0)
+  const volume = 0.3; // Set volume (0.0 to 1.0)
+  let wasReady = false;
 
   const playCoinSound = () => {
     const audio = new Audio('https://www.myinstants.com/media/sounds/coin.mp3');
@@ -7,40 +8,63 @@
     audio.play();
   };
 
-  const checkMintValue = () => {
-    const el = document.getElementById('coin_mint_fill_max');
-    if (!el) return;
-    const match = el.textContent.match(/\d+/);
-    if (match && parseInt(match[0], 10) >= 1) {
-      playCoinSound();
+  const updateMonitorStatus = (text, color) => {
+    const monitorCell = document.getElementById('coinMonitorStatus');
+    if (monitorCell) {
+      monitorCell.textContent = text;
+      monitorCell.style.backgroundColor = color;
     }
   };
 
-  // Find the row containing the "Bate" button
-  const rows = document.querySelectorAll('table.vis tr');
-  let found = false;
+  const checkMintValue = () => {
+    const el = document.getElementById('coin_mint_fill_max');
+    const inactiveNotice = document.querySelector('td span.inactive');
 
-  for (let row of rows) {
-    const btn = row.querySelector('input[type="submit"][value="Bate"]');
-    if (btn) {
-      // Insert new cell for monitor status
-      const monitorCell = document.createElement('td');
-      monitorCell.id = 'coinMonitorStatus';
-      monitorCell.style.padding = '5px 10px';
-      monitorCell.style.backgroundColor = '#ffd700';
-      monitorCell.style.fontWeight = 'bold';
-      monitorCell.textContent = '💰 Monitor: ON';
-      row.appendChild(monitorCell);
-      found = true;
-      break;
+    if (el) {
+      const match = el.textContent.match(/\d+/);
+      const value = match ? parseInt(match[0], 10) : 0;
+
+      if (value >= 1 && !wasReady) {
+        wasReady = true;
+        playCoinSound();
+        updateMonitorStatus('💰 READY to mint!', '#90ee90'); // green
+      } else if (value < 1 && wasReady) {
+        wasReady = false;
+        updateMonitorStatus('💰 Monitor: ON', '#ffd700'); // gold
+      }
+    } else if (inactiveNotice) {
+      wasReady = false;
+      updateMonitorStatus('🚫 Not available', '#f8d7da'); // red/pink
+    } else {
+      updateMonitorStatus('❓ Unknown state', '#d3d3d3'); // gray
     }
-  }
+  };
 
-  if (!found) {
-    alert('Could not find the Bate button row.');
+  // Try to find where to insert the monitor status
+  const targetRow = (() => {
+    const forms = document.querySelectorAll('form[action*="action=coin"]');
+    for (let form of forms) {
+      const btn = form.querySelector('input[type="submit"]');
+      const row = form.closest('tr');
+      if (btn && row) return row;
+    }
+    // If no form/button found, look for inactive text row
+    const inactive = document.querySelector('td span.inactive');
+    return inactive ? inactive.closest('tr') : null;
+  })();
+
+  if (!targetRow || document.getElementById('coinMonitorStatus')) {
+    alert('Could not find the correct row to insert monitor status.');
     return;
   }
 
-  // Start monitoring
+  const monitorCell = document.createElement('td');
+  monitorCell.id = 'coinMonitorStatus';
+  monitorCell.style.padding = '5px 10px';
+  monitorCell.style.fontWeight = 'bold';
+  monitorCell.style.backgroundColor = '#ffd700';
+  monitorCell.textContent = '💰 Monitor: ON';
+  targetRow.appendChild(monitorCell);
+
   setInterval(checkMintValue, 10000);
 })();
