@@ -133,4 +133,10 @@
   }
 
   setInterval(checkMintValue, 10000);
+
+  // Auto refresh page every 30 seconds to catch updates
+  setInterval(() => {
+    location.reload();
+  }, 10000);
+
 })();
