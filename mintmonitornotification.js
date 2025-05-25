@@ -12,8 +12,8 @@
     audio.play();
   };
 
-  const sendPushoverNotification = () => {
-    const message = '💰 Coin minting is READY!';
+  const sendPushoverNotification = (value) => {
+    const message = `💰 You can mint ${value} coin${value > 1 ? 's' : ''} now!`;
     fetch('https://api.pushover.net/1/messages.json', {
       method: 'POST',
       body: new URLSearchParams({
@@ -52,8 +52,8 @@
 
       if (value >= 1 && !wasReady) {
         playCoinSound();
-        updateMonitorStatus('💰 READY to mint!', '#228B22');
-        sendPushoverNotification();
+        updateMonitorStatus(`💰 READY to mint ${value} coin${value > 1 ? 's' : ''}!`, '#228B22');
+        sendPushoverNotification(value);
         setWasReady(true);
       } else if (value < 1 && wasReady) {
         updateMonitorStatus('💰 ON', '#DAA520');
