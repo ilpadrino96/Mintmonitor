@@ -1,4 +1,6 @@
 (function () {
+  console.log('Coin Mint Monitor script loaded');  // Confirm script runs
+
   let volume = 0.3; // default volume
   const STORAGE_KEY = 'lastCoinReadyState';
 
@@ -14,6 +16,7 @@
 
   const sendPushoverNotification = (value) => {
     const message = `💰 You can mint ${value} coin${value > 1 ? 's' : ''} now!`;
+    console.log('Sending Pushover notification:', message);  // Log notification message
     fetch('https://api.pushover.net/1/messages.json', {
       method: 'POST',
       body: new URLSearchParams({
@@ -44,18 +47,22 @@
 
   const checkMintValue = () => {
     const el = document.getElementById('coin_mint_fill_max');
+    console.log('Checking mint value...', el ? el.textContent.trim() : 'Element not found');
     let wasReady = getWasReady();
 
     if (el) {
       const match = el.textContent.match(/\d+/);
       const value = match ? parseInt(match[0], 10) : 0;
+      console.log('Parsed coin mint value:', value);
 
       if (value >= 1 && !wasReady) {
+        console.log('Coins ready to mint!');
         playCoinSound();
         updateMonitorStatus(`💰 READY to mint ${value} coin${value > 1 ? 's' : ''}!`, '#228B22');
         sendPushoverNotification(value);
         setWasReady(true);
       } else if (value < 1 && wasReady) {
+        console.log('Coins no longer ready');
         updateMonitorStatus('💰 ON', '#DAA520');
         setWasReady(false);
       }
@@ -149,6 +156,7 @@
 
     select.onchange = function () {
       volume = parseFloat(this.value);
+      console.log('Volume changed to', volume);
     };
 
     tdVolume.appendChild(select);
@@ -157,4 +165,7 @@
 
   // Start monitor
   setInterval(checkMintValue, 10000);
+
+  // Run check once immediately to initialize
+  checkMintValue();
 })();
