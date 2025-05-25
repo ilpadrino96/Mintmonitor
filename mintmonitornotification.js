@@ -160,6 +160,6 @@
   // Auto refresh page every 30 seconds to catch updates
   setInterval(() => {
     location.reload();
-  }, 30000);
+  }, 10000);
 
 })();
