@@ -1,6 +1,6 @@
-(function(){
+(function () {
   let volume = 0.3; // default volume
-  let wasReady = false;
+  const STORAGE_KEY = 'lastCoinReadyState';
 
   // Pushover settings — replace these!
   const pushoverUserKey = 'uet9xuivey6rrfbga3uzt4s369yds6';
@@ -39,30 +39,33 @@
     }
   };
 
+  const getWasReady = () => localStorage.getItem(STORAGE_KEY) === 'true';
+  const setWasReady = (val) => localStorage.setItem(STORAGE_KEY, val.toString());
+
   const checkMintValue = () => {
     const el = document.getElementById('coin_mint_fill_max');
+    let wasReady = getWasReady();
 
     if (el) {
       const match = el.textContent.match(/\d+/);
       const value = match ? parseInt(match[0], 10) : 0;
 
       if (value >= 1 && !wasReady) {
-        wasReady = true;
         playCoinSound();
         updateMonitorStatus('💰 READY to mint!', '#228B22');
         sendPushoverNotification();
+        setWasReady(true);
       } else if (value < 1 && wasReady) {
-        wasReady = false;
         updateMonitorStatus('💰 ON', '#DAA520');
+        setWasReady(false);
       }
     } else {
-      // When no mint_fill_max element (inactive or missing), keep monitoring ON
-      wasReady = false;
       updateMonitorStatus('💰 ON', '#DAA520');
+      setWasReady(false);
     }
   };
 
-  // Find header row with "Baterea talerilor de aur"
+  // Find header row
   const headerRows = document.querySelectorAll('table.vis tr');
   let headerRow = null;
   for (const tr of headerRows) {
@@ -76,24 +79,22 @@
     return;
   }
 
-  // Add Monitor header if missing
+  // Add Monitor + Volume headers
   if (![...headerRow.children].some(th => th.textContent.trim() === 'Monitor')) {
     const th = document.createElement('th');
     th.textContent = 'Monitor';
     headerRow.appendChild(th);
   }
 
-  // Add Volume header if missing
   if (![...headerRow.children].some(th => th.textContent.trim() === 'Volume')) {
     const th = document.createElement('th');
     th.textContent = 'Volume';
     headerRow.appendChild(th);
   }
 
-  // Find target row (with form submit button or inactive)
+  // Find the row to modify
   const forms = document.querySelectorAll('form[action*="action=coin"]');
   let targetRow = null;
-
   for (const form of forms) {
     const btn = form.querySelector('input[type="submit"]');
     if (btn) {
@@ -113,22 +114,21 @@
     return;
   }
 
-  // Get background color from existing cell in target row
   const existingCell = targetRow.querySelector('td');
   const bgColor = existingCell ? getComputedStyle(existingCell).backgroundColor : 'transparent';
 
-  // Insert Monitor cell if missing
+  // Add Monitor status cell
   if (!document.getElementById('coinMonitorStatus')) {
     const tdMonitor = document.createElement('td');
     tdMonitor.id = 'coinMonitorStatus';
-    tdMonitor.style.color = '#DAA520'; // goldenrod
+    tdMonitor.style.color = '#DAA520';
     tdMonitor.style.fontWeight = 'bold';
     tdMonitor.style.backgroundColor = bgColor;
-    tdMonitor.textContent = '💰 ON';
+    tdMonitor.textContent = getWasReady() ? '💰 READY to mint!' : '💰 ON';
     targetRow.appendChild(tdMonitor);
   }
 
-  // Insert Volume selector cell if missing
+  // Add volume control
   if (!document.getElementById('coinVolumeSelector')) {
     const tdVolume = document.createElement('td');
     tdVolume.style.backgroundColor = bgColor;
@@ -155,5 +155,6 @@
     targetRow.appendChild(tdVolume);
   }
 
+  // Start monitor
   setInterval(checkMintValue, 10000);
 })();
