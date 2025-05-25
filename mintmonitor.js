@@ -1,4 +1,4 @@
-javascript:(function(){
+(function(){
   let volume = 0.3; // default volume
   let wasReady = false;
 
