@@ -39,6 +39,15 @@
     }
   };
 
+  const updateStatus = (text, color) => {
+    const statusCell = document.getElementById('coinStatus');
+    if (statusCell) {
+      statusCell.textContent = text;
+      statusCell.style.color = color;
+      statusCell.style.backgroundColor = statusCell.style.backgroundColor || 'transparent';
+    }
+  };
+
   const getLastNotifiedValue = () => {
     const val = localStorage.getItem(STORAGE_KEY);
     return val ? parseInt(val, 10) : 0;
@@ -66,16 +75,17 @@
         console.log(`[Mint Monitor] NEW: ${value} coins available`);
         playCoinSound();
         sendPushoverNotification(value);
-        updateMonitorStatus(`💰 READY to mint ${value} coin${value > 1 ? 's' : ''}!`, '#228B22');
+        updateStatus(`💰 READY to mint ${value} coin${value > 1 ? 's' : ''}!`, '#228B22');
         setLastNotifiedValue(value);
       } else if (value < 1 && lastNotified !== 0) {
-        updateMonitorStatus('💰 ON', '#DAA520');
+        updateStatus('No coins available now', '#DAA520');
         setLastNotifiedValue(0);
       } else {
-        console.log(`[Mint Monitor] No change (${value})`);
+        updateStatus(`No change (${value})`, '#888');
       }
     } catch (err) {
       console.error('[Mint Monitor] Fetch failed:', err);
+      updateStatus('Fetch failed', '#B22222');
     }
   };
 
@@ -93,16 +103,22 @@
     return;
   }
 
-  // Add Monitor + Volume headers if missing
-  if (![...headerRow.children].some(th => th.textContent.trim() === 'Monitor')) {
-    const th = document.createElement('th');
-    th.textContent = 'Monitor';
-    headerRow.appendChild(th);
+  // Add Monitor, Status + Volume headers if missing
+  const existingHeaders = [...headerRow.children].map(th => th.textContent.trim());
+  if (!existingHeaders.includes('Monitor')) {
+    const thMonitor = document.createElement('th');
+    thMonitor.textContent = 'Monitor';
+    headerRow.appendChild(thMonitor);
   }
-  if (![...headerRow.children].some(th => th.textContent.trim() === 'Volume')) {
-    const th = document.createElement('th');
-    th.textContent = 'Volume';
-    headerRow.appendChild(th);
+  if (!existingHeaders.includes('Status')) {
+    const thStatus = document.createElement('th');
+    thStatus.textContent = 'Status';
+    headerRow.appendChild(thStatus);
+  }
+  if (!existingHeaders.includes('Volume')) {
+    const thVolume = document.createElement('th');
+    thVolume.textContent = 'Volume';
+    headerRow.appendChild(thVolume);
   }
 
   // Find the row to modify
@@ -130,15 +146,26 @@
   const existingCell = targetRow.querySelector('td');
   const bgColor = existingCell ? getComputedStyle(existingCell).backgroundColor : 'transparent';
 
-  // Add Monitor status cell
+  // Add Monitor status cell (always show "💰 ON")
   if (!document.getElementById('coinMonitorStatus')) {
     const tdMonitor = document.createElement('td');
     tdMonitor.id = 'coinMonitorStatus';
     tdMonitor.style.color = '#DAA520';
     tdMonitor.style.fontWeight = 'bold';
     tdMonitor.style.backgroundColor = bgColor;
-    tdMonitor.textContent = getLastNotifiedValue() > 0 ? `💰 READY to mint ${getLastNotifiedValue()} coin${getLastNotifiedValue() > 1 ? 's' : ''}!` : '💰 ON';
+    tdMonitor.textContent = '💰 ON';
     targetRow.appendChild(tdMonitor);
+  }
+
+  // Add Status cell (for dynamic messages)
+  if (!document.getElementById('coinStatus')) {
+    const tdStatus = document.createElement('td');
+    tdStatus.id = 'coinStatus';
+    tdStatus.style.color = '#888';
+    tdStatus.style.fontWeight = 'bold';
+    tdStatus.style.backgroundColor = bgColor;
+    tdStatus.textContent = 'Starting monitor...';
+    targetRow.appendChild(tdStatus);
   }
 
   // Add volume control
