@@ -1,6 +1,6 @@
-(function(){
+(function () {
   let volume = 0.3; // default volume
-  let wasReady = false;
+  const STORAGE_KEY = 'lastCoinNotifiedValue';
 
   const playCoinSound = () => {
     const audio = new Audio('https://www.myinstants.com/media/sounds/coin.mp3');
@@ -17,29 +17,56 @@
     }
   };
 
-  const checkMintValue = () => {
-    const el = document.getElementById('coin_mint_fill_max');
-
-    if (el) {
-      const match = el.textContent.match(/\d+/);
-      const value = match ? parseInt(match[0], 10) : 0;
-
-      if (value >= 1 && !wasReady) {
-        wasReady = true;
-        playCoinSound();
-        updateMonitorStatus('💰 READY to mint!', '#228B22');
-      } else if (value < 1 && wasReady) {
-        wasReady = false;
-        updateMonitorStatus('💰 ON', '#DAA520');
-      }
-    } else {
-      // When no mint_fill_max element (inactive or missing), keep monitoring ON
-      wasReady = false;
-      updateMonitorStatus('💰 ON', '#DAA520');
+  const updateStatus = (text, color) => {
+    const statusCell = document.getElementById('coinStatus');
+    if (statusCell) {
+      statusCell.textContent = text;
+      statusCell.style.color = color;
+      statusCell.style.backgroundColor = statusCell.style.backgroundColor || 'transparent';
     }
   };
 
-  // Find header row with "Baterea talerilor de aur"
+  const getLastNotifiedValue = () => {
+    const val = localStorage.getItem(STORAGE_KEY);
+    return val ? parseInt(val, 10) : 0;
+  };
+
+  const setLastNotifiedValue = (val) => {
+    localStorage.setItem(STORAGE_KEY, val.toString());
+  };
+
+  const fetchAndCheck = async () => {
+    try {
+      const response = await fetch(window.location.href, { credentials: 'include' });
+      const html = await response.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      const fillMax = doc.querySelector('#coin_mint_fill_max');
+      const match = fillMax?.textContent.match(/\d+/);
+      const value = match ? parseInt(match[0], 10) : 0;
+      const lastNotified = getLastNotifiedValue();
+
+      console.log(`[Mint Monitor] Checking value: ${value}, last notified: ${lastNotified}`);
+
+      if (value >= 1 && value > lastNotified) {
+        console.log(`[Mint Monitor] NEW: ${value} coins available`);
+        playCoinSound();
+        updateStatus(`💰 READY to mint ${value} coin${value > 1 ? 's' : ''}!`, '#228B22');
+        setLastNotifiedValue(value);
+      } else if (value < 1 && lastNotified !== 0) {
+        updateStatus('No coins available now', '#DAA520');
+        setLastNotifiedValue(0);
+      } else {
+        updateStatus(`No change (${value})`, '#888');
+      }
+    } catch (err) {
+      console.error('[Mint Monitor] Fetch failed:', err);
+      updateStatus('Fetch failed', '#B22222');
+    }
+  };
+
+  // Find header row
   const headerRows = document.querySelectorAll('table.vis tr');
   let headerRow = null;
   for (const tr of headerRows) {
@@ -53,24 +80,27 @@
     return;
   }
 
-  // Add Monitor header if missing
-  if (![...headerRow.children].some(th => th.textContent.trim() === 'Monitor')) {
-    const th = document.createElement('th');
-    th.textContent = 'Monitor';
-    headerRow.appendChild(th);
+  // Add Monitor, Status + Volume headers if missing
+  const existingHeaders = [...headerRow.children].map(th => th.textContent.trim());
+  if (!existingHeaders.includes('Monitor')) {
+    const thMonitor = document.createElement('th');
+    thMonitor.textContent = 'Monitor';
+    headerRow.appendChild(thMonitor);
+  }
+  if (!existingHeaders.includes('Status')) {
+    const thStatus = document.createElement('th');
+    thStatus.textContent = 'Status';
+    headerRow.appendChild(thStatus);
+  }
+  if (!existingHeaders.includes('Volume')) {
+    const thVolume = document.createElement('th');
+    thVolume.textContent = 'Volume';
+    headerRow.appendChild(thVolume);
   }
 
-  // Add Volume header if missing
-  if (![...headerRow.children].some(th => th.textContent.trim() === 'Volume')) {
-    const th = document.createElement('th');
-    th.textContent = 'Volume';
-    headerRow.appendChild(th);
-  }
-
-  // Find target row (with form submit button or inactive)
+  // Find the row to modify
   const forms = document.querySelectorAll('form[action*="action=coin"]');
   let targetRow = null;
-
   for (const form of forms) {
     const btn = form.querySelector('input[type="submit"]');
     if (btn) {
@@ -90,22 +120,32 @@
     return;
   }
 
-  // Get background color from existing cell in target row
   const existingCell = targetRow.querySelector('td');
   const bgColor = existingCell ? getComputedStyle(existingCell).backgroundColor : 'transparent';
 
-  // Insert Monitor cell if missing
+  // Add Monitor status cell (always show "💰 ON")
   if (!document.getElementById('coinMonitorStatus')) {
     const tdMonitor = document.createElement('td');
     tdMonitor.id = 'coinMonitorStatus';
-    tdMonitor.style.color = '#DAA520'; // goldenrod
+    tdMonitor.style.color = '#DAA520';
     tdMonitor.style.fontWeight = 'bold';
     tdMonitor.style.backgroundColor = bgColor;
     tdMonitor.textContent = '💰 ON';
     targetRow.appendChild(tdMonitor);
   }
 
-  // Insert Volume selector cell if missing
+  // Add Status cell (for dynamic messages)
+  if (!document.getElementById('coinStatus')) {
+    const tdStatus = document.createElement('td');
+    tdStatus.id = 'coinStatus';
+    tdStatus.style.color = '#888';
+    tdStatus.style.fontWeight = 'bold';
+    tdStatus.style.backgroundColor = bgColor;
+    tdStatus.textContent = 'Starting monitor...';
+    targetRow.appendChild(tdStatus);
+  }
+
+  // Add volume control
   if (!document.getElementById('coinVolumeSelector')) {
     const tdVolume = document.createElement('td');
     tdVolume.style.backgroundColor = bgColor;
@@ -132,11 +172,10 @@
     targetRow.appendChild(tdVolume);
   }
 
-  setInterval(checkMintValue, 10000);
+  // Start monitor every 10 seconds
+  setInterval(fetchAndCheck, 10000);
 
-  // Auto refresh page every 30 seconds to catch updates
-  //setInterval(() => {
-    //location.reload();
-  //}, 10000);
+  // Run one check immediately
+  fetchAndCheck();
 
 })();
