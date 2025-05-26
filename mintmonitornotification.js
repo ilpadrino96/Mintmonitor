@@ -22,7 +22,7 @@
         message: message,
         title: 'Tribal Wars Mint Monitor',
         priority: '1',
-        sound: 'coin'
+        sound: 'coins'
       })
     }).then(res => {
       if (!res.ok) {
