@@ -21,7 +21,8 @@
         user: pushoverUserKey,
         message: message,
         title: 'Tribal Wars Mint Monitor',
-        priority: '1'
+        priority: '1',
+        sound: 'coin'
       })
     }).then(res => {
       if (!res.ok) {
